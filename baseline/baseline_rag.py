@@ -43,7 +43,6 @@ class VideoRAGBaseline:
             
         return embeddings.cpu().numpy()
     
-    # Rest of the methods stay the same...
     def embed_text(self, text):
         """Embed text query using CLIP"""
         text_tokens = self.tokenizer([text]).to(self.device)

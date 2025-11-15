@@ -20,8 +20,12 @@ class EventAnswerer:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            model_name, torch_dtype=torch.bfloat16, device_map="auto"
+            model_name, 
+            torch_dtype=torch.bfloat16, 
+            attn_implementation="flash_attention_2",  # for memory efficiency
+            device_map="auto"
         )
+        
         self.processor = AutoProcessor.from_pretrained(model_name)
         print(f"EventAnswerer loaded on {self.device}")
     
