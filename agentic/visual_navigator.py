@@ -68,9 +68,6 @@ class VisualEventNavigator:
                 'reasoning': decision['reasoning']
             })
             
-            print(f"Action: {decision['action'].upper()}")
-            print(f"Reasoning: {decision['reasoning'][:100]}...")
-            
             # Execute action
             if decision['action'] == 'answer':
                 break
@@ -81,14 +78,13 @@ class VisualEventNavigator:
             else:
                 break
         
-        print(f"\nExploration complete: visited {len(visited)} events")
         return visited, trace
     
     def _agent_decision(self, current_event, visited, question, video_frames,
                        has_next, has_prev, hop, max_hops):
         """Agent looks at frames and decides next action."""
-        # Sample 3 frames from current event
-        sampled_frames = self._sample_event_frames(current_event, video_frames, n=3)
+        # Sample frames from current event
+        sampled_frames = self._sample_event_frames(current_event, video_frames, n=5)
         
         # Build prompt
         available_actions = []
@@ -158,6 +154,7 @@ REASONING: [One sentence explanation]"""
     
     def _parse_decision(self, response, has_next, has_prev):
         """Extract action and reasoning from response."""
+        print(f"Debug Response: {response}")
         action_match = re.search(r'ACTION:\s*(NEXT|PREVIOUS|ANSWER)', response, re.IGNORECASE)
         reasoning_match = re.search(r'REASONING:\s*(.+?)(?:\n|$)', response, re.IGNORECASE | re.DOTALL)
         

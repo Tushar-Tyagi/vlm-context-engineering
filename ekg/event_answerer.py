@@ -22,7 +22,6 @@ class EventAnswerer:
         self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_name, 
             torch_dtype=torch.bfloat16, 
-            attn_implementation="flash_attention_2",  # for memory efficiency
             device_map="auto"
         )
         

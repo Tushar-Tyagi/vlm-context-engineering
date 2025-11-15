@@ -412,11 +412,10 @@ def run_agentic_evaluation(eval_subset_path='data/eval_subset.json',
                            checkpoint_interval=10):
     """Run Level 5 agentic evaluation."""
     
-    print("Loading evaluation subset...")
     with open(eval_subset_path, 'r') as f:
         eval_samples = json.load(f)
         
-    eval_samples = [s for s in eval_samples if s['duration'] == 'long']
+    # eval_samples = [s for s in eval_samples if s['duration'] == 'long']
     
     n_videos = len(set(s['video_id'] for s in eval_samples))
     print(f"Loaded {len(eval_samples)} questions from {n_videos} videos")
@@ -424,8 +423,8 @@ def run_agentic_evaluation(eval_subset_path='data/eval_subset.json',
     # Initialize only answerer and retriever
     video_manager = VideoManager()
     retriever = TriViewEventRetriever()
-    answerer = EventAnswerer()  # Keep this loaded
-    # navigator = VisualEventNavigator()  # ← REMOVE THIS LINE
+    answerer = EventAnswerer()
+    # navigator = VisualEventNavigator()
     
     results = []
     start_time = time.time()
@@ -470,7 +469,7 @@ def run_agentic_evaluation(eval_subset_path='data/eval_subset.json',
             del navigator
             torch.cuda.empty_cache()
             
-            # Step 3: Answer (navigator is now unloaded)
+            # Step 3: Answer
             inference_start = time.time()
             predicted = answerer.answer_question(
                 visited_events, video_path,
@@ -502,7 +501,7 @@ def run_agentic_evaluation(eval_subset_path='data/eval_subset.json',
             # Checkpoint          
             if (i + 1) % checkpoint_interval == 0:
                 checkpoint_path = output_path.replace('.json', f'_checkpoint_{i+1}.json')
-                save_agentic_results(results, checkpoint_path, partial=True)  # ← Use function
+                save_agentic_results(results, checkpoint_path, partial=True)
                 print(f"\nCheckpoint: {len(results)} results")
                 
         except Exception as e:
