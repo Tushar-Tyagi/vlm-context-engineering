@@ -25,7 +25,7 @@ class VisualEventNavigator:
         self.processor = AutoProcessor.from_pretrained(model_name)
         self.current_video_path = None
     
-    def navigate(self, initial_event, ekg_data, question, video_path, max_hops=3):
+    def navigate(self, initial_event, ekg_data, question, video_path, max_hops=5):
         """Explore EKG starting from initial event."""
         # Extract video frames
         video_frames = self._extract_video_frames(video_path)
@@ -39,6 +39,7 @@ class VisualEventNavigator:
         visited_ids = set()
         current_event_id = initial_event['event_id']
         trace = []
+        self.current_trace = trace
         
         print(f"\nStarting navigation from event {current_event_id}")
         
@@ -51,9 +52,9 @@ class VisualEventNavigator:
             
             # Check available actions
             has_next = (relationships['next'].get(current_event_id) is not None and 
-                       relationships['next'][current_event_id] not in visited_ids)
+                    relationships['next'][current_event_id] not in visited_ids)
             has_prev = (relationships['prev'].get(current_event_id) is not None and
-                       relationships['prev'][current_event_id] not in visited_ids)
+                    relationships['prev'][current_event_id] not in visited_ids)
             
             # Agent decision
             decision = self._agent_decision(
@@ -71,20 +72,24 @@ class VisualEventNavigator:
             # Execute action
             if decision['action'] == 'answer':
                 break
-            elif decision['action'] == 'next' and has_next:
-                current_event_id = relationships['next'][current_event_id]
-            elif decision['action'] == 'previous' and has_prev:
-                current_event_id = relationships['prev'][current_event_id]
+            elif decision['action'] == 'next':
+                if has_next:
+                    current_event_id = relationships['next'][current_event_id]
+                else:
+                    break       
+            elif decision['action'] == 'previous':
+                if has_prev:
+                    current_event_id = relationships['prev'][current_event_id]
             else:
                 break
         
         return visited, trace
     
     def _agent_decision(self, current_event, visited, question, video_frames,
-                       has_next, has_prev, hop, max_hops):
+                    has_next, has_prev, hop, max_hops):
         """Agent looks at frames and decides next action."""
         # Sample frames from current event
-        sampled_frames = self._sample_event_frames(current_event, video_frames, n=5)
+        sampled_frames = self._sample_event_frames(current_event, video_frames, n=3)
         
         # Build prompt
         available_actions = []
@@ -96,25 +101,33 @@ class VisualEventNavigator:
         
         actions_text = "\n".join(available_actions)
         
-        context_summary = "This is your first event." if len(visited) == 1 else "\n".join([
-            f"Event {i}: {e['description'][:50]}" for i, e in enumerate(visited[:-1], 1)
-        ])
+        # Build context from trace reasoning instead of descriptions
+        if len(visited) == 1:
+            context_summary = "This is your first event."
+        else:
+            # Get reasoning from trace
+            trace_context = []
+            for i, step in enumerate(self.current_trace):
+                trace_context.append(f"Hop {step['hop']}: {step['action'].upper()} - {step['reasoning']}")
+            context_summary = "\n".join(trace_context)
         
         prompt = f"""You are exploring a video to answer: "{question}"
 
-Current event (hop {hop}/{max_hops}):
+    Current event (hop {hop}/{max_hops}):
 
-Below are some frames from this event.
+    Below are frames from this event.
 
-Previous context:
-{context_summary}
+    Your exploration so far:
+    {context_summary}
 
-Available actions:
-{actions_text}
+    Available actions:
+    {actions_text}
 
-Choose your action and explain why in this format:
-ACTION: [NEXT/PREVIOUS/ANSWER]
-REASONING: [One sentence explanation]"""
+    IMPORTANT: Only choose ANSWER if you are confident you have enough context to answer the question correctly.
+    
+    Choose your action and explain why in this format:
+    ACTION: [NEXT/PREVIOUS/ANSWER]
+    REASONING: [One sentence explanation]"""
 
         # Build message with frames
         content = [{"type": "text", "text": prompt}]
@@ -137,7 +150,7 @@ REASONING: [One sentence explanation]"""
         
         with torch.no_grad():
             generated_ids = self.model.generate(
-                **inputs, max_new_tokens=256, do_sample=False
+                **inputs, max_new_tokens=128, do_sample=False
             )
         
         generated_ids_trimmed = [

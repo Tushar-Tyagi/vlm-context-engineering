@@ -461,7 +461,7 @@ def run_agentic_evaluation(eval_subset_path='data/eval_subset.json',
                 ekg_data=ekg_data,
                 question=sample['question'],
                 video_path=video_path,
-                max_hops=3
+                max_hops=5
             )
             navigation_time = time.time() - navigation_start
             retrieval_time = time.time() - retrieval_start
@@ -474,8 +474,11 @@ def run_agentic_evaluation(eval_subset_path='data/eval_subset.json',
             predicted = answerer.answer_question(
                 visited_events, video_path,
                 sample['question'], sample['options'],
-                frame_budget=30, include_descriptions=True
+                frame_budget=30, 
+                include_descriptions=True,
+                navigation_trace=trace
             )
+            
             inference_time = time.time() - inference_start
             
             # Store result

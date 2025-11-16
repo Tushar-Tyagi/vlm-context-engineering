@@ -28,7 +28,7 @@ class EventAnswerer:
         self.processor = AutoProcessor.from_pretrained(model_name)
         print(f"EventAnswerer loaded on {self.device}")
     
-    def answer_question(self, events, video_path, question, options, frame_budget=25, include_descriptions=True):
+    def answer_question(self, events, video_path, question, options, frame_budget=30, include_descriptions=True, navigation_trace=None):
         """Generate answer from retrieved events."""
         # Extract all video frames at 1 FPS
         all_frames = self._extract_video_frames(video_path)
@@ -45,11 +45,20 @@ class EventAnswerer:
         # Build VLM prompt
         content = []
         
-        # Add temporal context header
-        content.append({
-            "type": "text",
-            "text": "The following events are shown in chronological order:\n"
-        })
+        if navigation_trace:
+            trace_summary = "Agent's exploration path:\n"
+            for step in navigation_trace:
+                trace_summary += f"Hop {step['hop']}: {step['action'].upper()} - {step['reasoning']}\n"
+            content.append({
+                "type": "text",
+                "text": trace_summary + "\nBased on this exploration, here are the relevant events:\n"
+            })
+        else:
+            # Add temporal context header
+            content.append({
+                "type": "text",
+                "text": "The following events are shown in chronological order:\n"
+            })
         
         # Allocate frames proportionally based on event scores
         total_available = sum(len(e['frame_indices']) for e in events)
